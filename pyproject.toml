@@ -27,11 +27,12 @@ dependencies = [
     "interegular",
     "jsonschema",
     "modal",
+    "numpy",
     "outlines",
+    "Pillow",
     "referencing",
     "term-image",
     "requests",
-    "Pillow",
 ]
 dynamic = ["version"]
 
