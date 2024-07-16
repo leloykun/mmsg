@@ -2,6 +2,7 @@
 
 Generate interleaved text and image content in a structured format you can directly pass to downstream APIs. You can also use this to control how many "draft" text tokens and "imagination" image tokens the model generates first before it starts generating the final output.
 
+Example output:
 
 ```json
 {
@@ -14,6 +15,12 @@ Generate interleaved text and image content in a structured format you can direc
     ]
 }
 ```
+
+With the images saved to disk.
+
+NOTE: This is a work in progress. It currently only supports vector-quantized vision-language models (e.g. Chameleon & its finetunes), but it should work on soft vector vision-language models too with little modification (hopefully).
+
+Preprint coming up.
 
 ## Installation
 
@@ -87,9 +94,11 @@ python scripts/image_only_generation.py --inference-mode text-image-to-image --m
 ```
 
 ![](https://huggingface.co/microsoft/kosmos-2-patch14-224/resolve/main/snowman.jpg)
+
 Prompt: `"Draw a variation of this image"`
 
 Response:
+
 ![](media/text-image-to-image.png)
 
 I honestly don't know why it decided to draw an alien. But it's cool!
@@ -146,10 +155,13 @@ Response: `{"fruit_name": "Banana", "fruit_image": "<image>", "images_of_related
 
 Image 1:
 ![](media/structured_generation_image_1.png)
+
 Image 2:
 ![](media/structured_generation_image_2.png)
+
 Image 3:
 ![](media/structured_generation_image_3.png)
+
 Image 4:
 ![](media/structured_generation_image_4.png)
 
@@ -189,3 +201,9 @@ Then run the scripts!
   howpublished = {\url{https://github.com/leloykun/mmsg}},
 }
 ```
+
+## Acknowledgements
+
+The models used in this work are based on [Meta's Chameleon](https://huggingface.co/facebook/chameleon-7b) and [GAIR's Anole](https://huggingface.co/GAIR/Anole-7b-v0.1) models. This was also made a _lot_ easier by [Outlines](https://github.com/outlines-dev/outlines). Please cite their work too!
+
+Also big thanks to @zucchini-nlp and @ArthurZucker for feedback while integrating the models into Transformers!
