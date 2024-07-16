@@ -4,11 +4,11 @@ from interegular.patterns import (
     Pattern,
     Unsupported,
     _CharGroup,
+    _combine_char_groups,
     _Concatenation,
     _ParsePattern,
-    _combine_char_groups,
 )
-from interegular.utils.simple_parser import nomatch, NoMatch
+from interegular.utils.simple_parser import NoMatch, nomatch
 
 from mmsg.integrations.multimodal_tokenizer import MultimodalTokenizer
 
@@ -19,11 +19,13 @@ class _ParsePatternWithModalityMarkers(_ParsePattern):
         self.flags = None
         self.tokenizer = tokenizer
         self.special_image_tokens_group = _CharGroup(
-            frozenset({
-                tokenizer.image_token,
-                tokenizer.image_start_token,
-                tokenizer.image_end_token,
-            }),
+            frozenset(
+                {
+                    tokenizer.image_token,
+                    tokenizer.image_start_token,
+                    tokenizer.image_end_token,
+                }
+            ),
             negated=False,
         )
 
@@ -52,13 +54,9 @@ class _ParsePatternWithModalityMarkers(_ParsePattern):
             return _Concatenation(
                 tuple(
                     [
-                        _CharGroup(
-                            frozenset({self.tokenizer.image_start_token}), False
-                        ),
+                        _CharGroup(frozenset({self.tokenizer.image_start_token}), False),
                         b,
-                        _CharGroup(
-                            frozenset({self.tokenizer.image_end_token}), False
-                        ),
+                        _CharGroup(frozenset({self.tokenizer.image_end_token}), False),
                     ]
                 )
             )

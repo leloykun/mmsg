@@ -64,3 +64,22 @@ write_to = "mmsg/_version.py"
 [tool.mypy]
 exclude=[]
 enable_incomplete_feature = ["Unpack"]
+
+[tool.flake8]
+max-line-length = 89
+
+[tool.black]
+line-length = 89
+
+[[tool.mypy.overrides]]
+module = [
+    "interegular.*",
+    "jsonschema.*",
+    "outlines.*",
+    "PIL.*",
+    "referencing.*",
+    "requests.*",
+    "torch.*",
+    "transformers.*",
+]
+ignore_missing_imports = true

@@ -1,8 +1,8 @@
 from .chameleon_logits_processor import (
-    ChameleonModalityFSMGuide,
     ChameleonFSMLogitsProcessor,
-    ChameleonTextOnlyLogitsProcessor,
+    ChameleonModalityFSMGuide,
     ChameleonPrefixAllowedTokensFunc,
+    ChameleonTextOnlyLogitsProcessor,
 )
 from .multimodal_tokenizer import MultimodalTokenizer
 

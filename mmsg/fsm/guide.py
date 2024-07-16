@@ -3,7 +3,6 @@ from typing import List
 
 import interegular
 import torch
-
 from outlines.fsm.guide import RegexGuide, create_states_mapping
 
 from mmsg.fsm.regex import parse_pattern_with_modality_markers
@@ -37,9 +36,7 @@ class RegexWithMultimodalMarkersGuide(RegexGuide):
         self.eos_token_id = tokenizer.eos_token_id
         self.final_states = fsm_finals | {-1}
 
-        self.token_equivalence_classes = self._build_token_equivalence_classes(
-            tokenizer
-        )
+        self.token_equivalence_classes = self._build_token_equivalence_classes(tokenizer)
         self.token_equivalence_classes_rev = {
             token_id: canonical_token_id
             for canonical_token_id, token_ids in self.token_equivalence_classes.items()

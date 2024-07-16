@@ -1,1 +1,6 @@
-from .integrations import MultimodalTokenizer, ChameleonModalityFSMGuide, ChameleonFSMLogitsProcessor, ChameleonTextOnlyLogitsProcessor
+from .integrations import (
+    ChameleonFSMLogitsProcessor,
+    ChameleonModalityFSMGuide,
+    ChameleonTextOnlyLogitsProcessor,
+    MultimodalTokenizer,
+)

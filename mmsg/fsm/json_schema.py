@@ -3,19 +3,18 @@ import re
 from typing import Optional
 
 from jsonschema.protocols import Validator
-from referencing import Registry, Resource
-from referencing._core import Resolver
-from referencing.jsonschema import DRAFT202012
-
 from outlines.fsm.json_schema import (
     STRING,
     STRING_INNER,
     WHITESPACE,
+    _get_num_items_pattern,
     format_to_regex,
     type_to_regex,
     validate_quantifiers,
-    _get_num_items_pattern,
 )
+from referencing import Registry, Resource
+from referencing._core import Resolver
+from referencing.jsonschema import DRAFT202012
 
 
 def build_regex_from_schema(
@@ -165,7 +164,8 @@ def to_regex(
     # given subschemas.
     elif "allOf" in instance:
         subregexes = [
-            to_regex(resolver, t, whitespace_pattern, image_token) for t in instance["allOf"]
+            to_regex(resolver, t, whitespace_pattern, image_token)
+            for t in instance["allOf"]
         ]
         subregexes_str = [f"{subregex}" for subregex in subregexes]
         return rf"({''.join(subregexes_str)})"
@@ -174,7 +174,8 @@ def to_regex(
     # any (one or more) of the given subschemas.
     elif "anyOf" in instance:
         subregexes = [
-            to_regex(resolver, t, whitespace_pattern, image_token) for t in instance["anyOf"]
+            to_regex(resolver, t, whitespace_pattern, image_token)
+            for t in instance["anyOf"]
         ]
         return rf"({'|'.join(subregexes)})"
 
@@ -182,7 +183,8 @@ def to_regex(
     # one of the given subschemas.
     elif "oneOf" in instance:
         subregexes = [
-            to_regex(resolver, t, whitespace_pattern, image_token) for t in instance["oneOf"]
+            to_regex(resolver, t, whitespace_pattern, image_token)
+            for t in instance["oneOf"]
         ]
 
         xor_patterns = [f"(?:{subregex})" for subregex in subregexes]
@@ -192,7 +194,8 @@ def to_regex(
     # Create pattern for Tuples, per JSON Schema spec, `prefixItems` determines types at each idx
     elif "prefixItems" in instance:
         element_patterns = [
-            to_regex(resolver, t, whitespace_pattern, image_token) for t in instance["prefixItems"]
+            to_regex(resolver, t, whitespace_pattern, image_token)
+            for t in instance["prefixItems"]
         ]
         comma_split_pattern = rf"{whitespace_pattern},{whitespace_pattern}"
         tuple_inner = comma_split_pattern.join(element_patterns)
@@ -349,7 +352,9 @@ def to_regex(
             allow_empty = "?" if int(instance.get("minItems", 0)) == 0 else ""
 
             if "items" in instance:
-                items_regex = to_regex(resolver, instance["items"], whitespace_pattern, image_token)
+                items_regex = to_regex(
+                    resolver, instance["items"], whitespace_pattern, image_token
+                )
                 return rf"\[{whitespace_pattern}(({items_regex})(,{whitespace_pattern}({items_regex})){num_repeats}){allow_empty}{whitespace_pattern}\]"
             else:
                 # Here we need to make the choice to exclude generating list of objects
@@ -369,14 +374,15 @@ def to_regex(
                     legal_types.append({"type": "array", "depth": depth - 1})
 
                 regexes = [
-                    to_regex(resolver, t, whitespace_pattern, image_token) for t in legal_types
+                    to_regex(resolver, t, whitespace_pattern, image_token)
+                    for t in legal_types
                 ]
-                return rf"\[{whitespace_pattern}({'|'.join(regexes)})(,{whitespace_pattern}({'|'.join(regexes)})){num_repeats}{allow_empty}{whitespace_pattern}\]"
+                return rf"\[{whitespace_pattern}({'|'.join(regexes)})(,{whitespace_pattern}({'|'.join(regexes)})){num_repeats}{allow_empty}{whitespace_pattern}\]"  # noqa E501
 
         elif instance_type == "object":
-            # pattern for json object with values defined by instance["additionalProperties"]
-            # enforces value type constraints recursively, "minProperties", and "maxProperties"
-            # doesn't enforce "required", "dependencies", "propertyNames" "any/all/on Of"
+            # pattern for json object with values defined by instance["additionalProperties"]  # noqa E501
+            # enforces value type constraints recursively, "minProperties", and "maxProperties"  # noqa E501
+            # doesn't enforce "required", "dependencies", "propertyNames" "any/all/on Of"  # noqa E501
             num_repeats = _get_num_items_pattern(
                 instance.get("minProperties"),
                 instance.get("maxProperties"),
@@ -401,8 +407,8 @@ def to_regex(
                     {"type": "null"},
                 ]
 
-                # We set the object depth to 2 to keep the expression finite, but the "depth"
-                # key is not a true component of the JSON Schema specification.
+                # We set the object depth to 2 to keep the expression finite, but the
+                # "depth" key is not a true component of the JSON Schema specification.
                 depth = instance.get("depth", 2)
                 if depth > 0:
                     legal_types.append({"type": "object", "depth": depth - 1})
@@ -418,7 +424,7 @@ def to_regex(
             key_value_successor_pattern = (
                 f"{whitespace_pattern},{whitespace_pattern}{key_value_pattern}"
             )
-            multiple_key_value_pattern = f"({key_value_pattern}({key_value_successor_pattern}){num_repeats}){allow_empty}"
+            multiple_key_value_pattern = f"({key_value_pattern}({key_value_successor_pattern}){num_repeats}){allow_empty}"  # noqa E501
 
             return (
                 r"\{"

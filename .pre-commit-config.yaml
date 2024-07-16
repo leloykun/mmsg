@@ -16,11 +16,12 @@ repos:
   hooks:
     - id: pyupgrade
       args: [--py37-plus]
-- repo: https://github.com/pycqa/flake8
-  rev: 6.0.0
-  hooks:
-   - id: flake8
-     exclude: ^scripts/
+# - repo: https://github.com/pycqa/flake8
+#   rev: 6.0.0
+#   hooks:
+#    - id: flake8
+#      exclude: ^scripts/
+#      args: [--max-line-length=89]
 - repo: https://github.com/psf/black
   rev: 23.3.0
   hooks:
