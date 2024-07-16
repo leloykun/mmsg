@@ -26,22 +26,21 @@ classifiers = [
 dependencies = [
     "interegular",
     "jsonschema",
-    "modal",
-    "numpy",
-    "outlines",
+    "outlines @ git+https://github.com/outlines-dev/outlines@main",
     "Pillow",
     "referencing",
-    "term-image",
     "requests",
 ]
 dynamic = ["version"]
 
 [project.optional-dependencies]
 test = [
-    "pre-commit",
-    "transformers @ file:///transformers",
-    # "transformers",
+    "modal",
     "numpy",
+    "term-image",
+    "pre-commit",
+    "transformers @ git+https://github.com/leloykun/transformers@fc--anole",
+    # "transformers",
 ]
 
 [project.urls]
