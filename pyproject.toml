@@ -1,0 +1,65 @@
+[build-system]
+requires = ["setuptools>=45", "setuptools_scm[toml]>=6.2"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "mmsg"
+authors= [{name = "Franz Louis Cesista"}]
+description = "Multimodal Structured Generation"
+requires-python = ">=3.8"
+keywords=[
+    "machine learning",
+    "deep learning",
+    "language models",
+    "computer vision",
+    "structured generation",
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Information Technology",
+    "Intended Audience :: Science/Research",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+dependencies = [
+    "interegular",
+    "jsonschema",
+    "modal",
+    "outlines",
+    "referencing",
+    "term-image",
+    "requests",
+    "Pillow",
+]
+dynamic = ["version"]
+
+[project.optional-dependencies]
+test = [
+    "pre-commit",
+    "transformers @ file:///transformers",
+    # "transformers",
+    "numpy",
+]
+
+[project.urls]
+homepage = "https://github.com/leloykun/mmsg"
+repository = "https://github.com/leloykun/mmsg"
+
+[project.readme]
+file="README.md"
+content-type = "text/markdown"
+
+[tool.setuptools]
+packages = ["mmsg"]
+
+[tool.setuptools.package-data]
+"mmsg" = ["py.typed"]
+
+[tool.setuptools_scm]
+write_to = "mmsg/_version.py"
+
+[tool.mypy]
+exclude=[]
+enable_incomplete_feature = ["Unpack"]

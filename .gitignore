@@ -1,0 +1,4 @@
+.vscode
+**/__pycache__/
+mmsg/_version.py
+mmsg.egg-info
