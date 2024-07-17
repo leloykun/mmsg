@@ -6,7 +6,7 @@ Example output:
 
 ```json
 {
-    "fruit_name": "Banana",
+    "fruit_name": "Orange",
     "fruit_image": "<image>",
     "images_of_related_fruits": [
         "<image>",
@@ -105,7 +105,18 @@ I honestly don't know why it decided to draw an alien. But it's cool!
 
 #### Multi-image to image generation
 
-TODO
+```bash
+python scripts/image_only_generation.py --inference-mode multi-image-to-image --prompt "Draw what is common between these images" --image-1-path "https://nineplanets.org/wp-content/uploads/2020/12/the-big-dipper-1.jpg" --image-2-path "https://www.kxan.com/wp-content/uploads/sites/40/2020/10/ORION.jpg" --max-new-tokens 1026
+```
+
+![](https://nineplanets.org/wp-content/uploads/2020/12/the-big-dipper-1.jpg)
+![](https://www.kxan.com/wp-content/uploads/sites/40/2020/10/ORION.jpg)
+
+Prompt: `"Draw what is common between these images"`
+
+Response:
+
+![](media/multi-image-to-image.png)
 
 ### Interleaved Text and Image Generation
 
@@ -151,7 +162,15 @@ Json schema:
 }
 ```
 
-Response: `{"fruit_name": "Banana", "fruit_image": "<image>", "images_of_related_fruits": ["<image>", "<image>", "<image>"]}`
+Response:
+
+```json
+{
+    "fruit_name": "Orange",
+    "fruit_image": "<image>",
+    "images_of_related_fruits": ["<image>", "<image>", "<image>"]
+}
+```
 
 Image 1:
 ![](media/structured_generation_image_1.png)

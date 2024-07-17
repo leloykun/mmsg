@@ -14,6 +14,7 @@ def run_structured_generation(
     json_schema_path: Optional[str] = None,
     regex_pattern: Optional[str] = None,
     max_new_tokens: int = 2400,
+    fast: bool = False,
     model_cache_dir: str = "/pretrained",
     outputs_dir: str = ".",
     seed: Optional[int] = None,
@@ -32,16 +33,23 @@ def run_structured_generation(
         set_seed(42)
     torch.set_printoptions(threshold=10_000)
 
-    model = ChameleonForCausalLM.from_pretrained(
-        model_id,
-        # load_in_4bit=True,
-        torch_dtype=torch.bfloat16,
-        low_cpu_mem_usage=True,
-        attn_implementation="flash_attention_2",
-        device_map="auto",
-        token=os.environ["HF_TOKEN"],
-        cache_dir=model_cache_dir,
-    )
+    if fast:
+        model = ChameleonForCausalLM.from_pretrained(
+            model_id,
+            torch_dtype=torch.bfloat16,
+            low_cpu_mem_usage=True,
+            attn_implementation="flash_attention_2",
+            device_map="auto",
+            token=os.environ["HF_TOKEN"],
+            cache_dir=model_cache_dir,
+        )
+    else:
+        model = ChameleonForCausalLM.from_pretrained(
+            model_id,
+            device_map="auto",
+            token=os.environ["HF_TOKEN"],
+            cache_dir=model_cache_dir,
+        )
     processor = ChameleonProcessor.from_pretrained(
         model_id,
         token=os.environ["HF_TOKEN"],
@@ -52,8 +60,8 @@ def run_structured_generation(
         processor.tokenizer,
         image_token_ids=set(range(4, 4 + 8192)),
         image_token="<image>",
-        image_start_token="<racm3:break>",
-        image_end_token="<eoss>",
+        boi_token="<racm3:break>",
+        eoi_token="<eoss>",
     )
 
     if prompt is None:
@@ -123,8 +131,8 @@ def run_structured_generation(
         mmsg_tokenizer,
         frozen_tokens=[
             mmsg_tokenizer.image_token,
-            mmsg_tokenizer.image_start_token,
-            mmsg_tokenizer.image_end_token,
+            mmsg_tokenizer.boi_token,
+            mmsg_tokenizer.eoi_token,
         ],
     )
     logger.info("Finished building regex guide.")
@@ -155,11 +163,11 @@ def run_structured_generation(
     curr_image_tokens = []
     text_token_ids = []
     for token_id in response_token_ids[0]:
-        if token_id == mmsg_tokenizer.vocabulary[mmsg_tokenizer.image_start_token]:
+        if token_id == mmsg_tokenizer.boi_token_id:
             in_image_gen_mode = True
-            text_token_ids.append(mmsg_tokenizer.vocabulary[mmsg_tokenizer.image_token])
+            text_token_ids.append(mmsg_tokenizer.image_token_id)
             continue
-        if token_id == mmsg_tokenizer.vocabulary[mmsg_tokenizer.image_end_token]:
+        if token_id == mmsg_tokenizer.eoi_token_id:
             if in_image_gen_mode:
                 in_image_gen_mode = False
                 image_tokens_list.append(curr_image_tokens)
@@ -252,6 +260,14 @@ def parse_arguments() -> argparse.Namespace:
         help="The maximum number of tokens to generate.",
     )
     parser.add_argument(
+        "-f",
+        "--fast",
+        type=int,
+        required=False,
+        default=40,
+        help="Whether to convert the model to bfloat16 & use Flash Attention 2",
+    )
+    parser.add_argument(
         "-c",
         "--model_cache_dir",
         type=str,
@@ -278,9 +294,11 @@ if __name__ == "__main__":
         model_id=args.model_id,
         # inference_mode=args.inference_mode,
         prompt=args.prompt,
-        max_new_tokens=args.max_new_tokens,
-        model_cache_dir=args.model_cache_dir,
         json_schema_path=args.json_schema_path,
         regex_pattern=args.regex_pattern,
+        max_new_tokens=args.max_new_tokens,
+        fast=args.fast,
+        model_cache_dir=args.model_cache_dir,
+        outputs_dir=args.outputs_dir,
         seed=args.seed,
     )

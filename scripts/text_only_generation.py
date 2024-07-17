@@ -15,6 +15,7 @@ def run_text_only_generation(
     image_1_path: Optional[str] = None,
     image_2_path: Optional[str] = None,
     max_new_tokens: int = 40,
+    fast: bool = False,
     model_cache_dir: str = "/pretrained",
     seed: Optional[int] = None,
 ):
@@ -27,16 +28,23 @@ def run_text_only_generation(
         set_seed(0)
     torch.set_printoptions(threshold=10_000)
 
-    model = ChameleonForCausalLM.from_pretrained(
-        model_id,
-        # load_in_4bit=True,
-        torch_dtype=torch.bfloat16,
-        low_cpu_mem_usage=True,
-        attn_implementation="flash_attention_2",
-        device_map="auto",
-        token=os.environ.get("HF_TOKEN"),
-        cache_dir=model_cache_dir,
-    )
+    if fast:
+        model = ChameleonForCausalLM.from_pretrained(
+            model_id,
+            torch_dtype=torch.bfloat16,
+            low_cpu_mem_usage=True,
+            attn_implementation="flash_attention_2",
+            device_map="auto",
+            token=os.environ["HF_TOKEN"],
+            cache_dir=model_cache_dir,
+        )
+    else:
+        model = ChameleonForCausalLM.from_pretrained(
+            model_id,
+            device_map="auto",
+            token=os.environ["HF_TOKEN"],
+            cache_dir=model_cache_dir,
+        )
     processor = ChameleonProcessor.from_pretrained(
         model_id,
         token=os.environ.get("HF_TOKEN"),
@@ -169,6 +177,14 @@ def parse_arguments() -> argparse.Namespace:
         help="The maximum number of tokens to generate.",
     )
     parser.add_argument(
+        "-f",
+        "--fast",
+        type=int,
+        required=False,
+        default=40,
+        help="Whether to convert the model to bfloat16 & use Flash Attention 2",
+    )
+    parser.add_argument(
         "-c",
         "--model_cache_dir",
         type=str,
@@ -198,6 +214,7 @@ if __name__ == "__main__":
         image_1_path=args.image_1_path,
         image_2_path=args.image_2_path,
         max_new_tokens=args.max_new_tokens,
+        fast=args.fast,
         model_cache_dir=args.model_cache_dir,
         seed=args.seed,
     )

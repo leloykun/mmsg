@@ -16,6 +16,7 @@ def run_image_only_generation(
     image_1_path: Optional[str] = None,
     image_2_path: Optional[str] = None,
     max_new_tokens: int = 2400,
+    fast: bool = False,
     model_cache_dir: Optional[str] = None,
     outputs_dir: str = ".",
     seed: Optional[int] = None,
@@ -23,7 +24,12 @@ def run_image_only_generation(
     import torch
     from term_image.image import from_file
     from transformers import ChameleonForCausalLM, ChameleonProcessor, set_seed
+    from transformers.generation.logits_process import LogitsProcessorList
 
+    from mmsg.integrations.chameleon_logits_processor import (
+        ChameleonFSMLogitsProcessor,
+        ChameleonModalityFSMGuide,
+    )
     from mmsg.integrations.multimodal_tokenizer import MultimodalTokenizer
     from mmsg.utils import load_image
 
@@ -31,16 +37,23 @@ def run_image_only_generation(
         set_seed(42)
     torch.set_printoptions(threshold=10_000)
 
-    model = ChameleonForCausalLM.from_pretrained(
-        model_id,
-        # load_in_4bit=True,
-        torch_dtype=torch.bfloat16,
-        low_cpu_mem_usage=True,
-        attn_implementation="flash_attention_2",
-        device_map="auto",
-        token=os.environ["HF_TOKEN"],
-        cache_dir=model_cache_dir,
-    )
+    if fast:
+        model = ChameleonForCausalLM.from_pretrained(
+            model_id,
+            torch_dtype=torch.bfloat16,
+            low_cpu_mem_usage=True,
+            attn_implementation="flash_attention_2",
+            device_map="auto",
+            token=os.environ["HF_TOKEN"],
+            cache_dir=model_cache_dir,
+        )
+    else:
+        model = ChameleonForCausalLM.from_pretrained(
+            model_id,
+            device_map="auto",
+            token=os.environ["HF_TOKEN"],
+            cache_dir=model_cache_dir,
+        )
     processor = ChameleonProcessor.from_pretrained(
         model_id,
         token=os.environ["HF_TOKEN"],
@@ -51,8 +64,8 @@ def run_image_only_generation(
         processor.tokenizer,
         image_token_ids=set(range(4, 4 + 8192)),
         image_token="<image>",
-        image_start_token="<racm3:break>",
-        image_end_token="<eoss>",
+        boi_token="<racm3:break>",
+        eoi_token="<eoss>",
     )
 
     if inference_mode == "text-to-image":
@@ -109,11 +122,32 @@ def run_image_only_generation(
     else:
         raise ValueError(f"Invalid inference_id: {inference_id}")
 
+    max_length = max_new_tokens + inputs["input_ids"].shape[-1]
+    print(f"{max_length = } | {max_new_tokens = } | {inputs['input_ids'].shape = }")
+
+    logits_processor = LogitsProcessorList([
+        ChameleonFSMLogitsProcessor(
+            fsm=ChameleonModalityFSMGuide(
+                all_token_ids=model.model.vocabulary_mapping.vocab_map.values(),
+                image_token_ids=model.model.vocabulary_mapping.image_token_ids,
+                eos_token_id=model.model.config.eos_token_id,
+                boi_token_id=model.model.vocabulary_mapping.boi_token_id,
+                eoi_token_id=model.model.vocabulary_mapping.eoi_token_id,
+                device=model.device,
+                multimodal_generation_mode="image-only",
+            ),
+            max_length=max_length,
+        )
+    ])
+
     logger.info("Generating response...")
-    model.multimodal_generation_mode = "image-only"
+    model.multimodal_generation_mode = "free"
     with torch.inference_mode():
         output_token_ids_batch = model.generate(
-            **inputs, max_new_tokens=max_new_tokens, do_sample=True
+            **inputs,
+            max_new_tokens=max_new_tokens,
+            logits_processor=logits_processor,
+            do_sample=True
         )
     logger.info("Finished generation.")
 
@@ -131,13 +165,13 @@ def run_image_only_generation(
     curr_image_tokens = []
     text_token_ids = []
     for token_id in response_token_ids[0]:
-        if token_id == mmsg_tokenizer.vocabulary[mmsg_tokenizer.image_start_token]:
+        if token_id == mmsg_tokenizer.boi_token_id:
             in_image_gen_mode = True
-            text_token_ids.append(mmsg_tokenizer.vocabulary[mmsg_tokenizer.image_token])
             continue
-        if token_id == mmsg_tokenizer.vocabulary[mmsg_tokenizer.image_end_token]:
+        if token_id == mmsg_tokenizer.eoi_token_id:
             if in_image_gen_mode:
                 in_image_gen_mode = False
+                text_token_ids.append(mmsg_tokenizer.image_token_id)
                 image_tokens_list.append(curr_image_tokens)
                 curr_image_tokens = []
             continue
@@ -228,6 +262,14 @@ def parse_arguments() -> argparse.Namespace:
         help="The maximum number of tokens to generate.",
     )
     parser.add_argument(
+        "-f",
+        "--fast",
+        type=int,
+        required=False,
+        default=40,
+        help="Whether to convert the model to bfloat16 & use Flash Attention 2",
+    )
+    parser.add_argument(
         "-c",
         "--model_cache_dir",
         type=str,
@@ -265,6 +307,7 @@ if __name__ == "__main__":
         image_1_path=args.image_1_path,
         image_2_path=args.image_2_path,
         max_new_tokens=args.max_new_tokens,
+        fast=args.fast,
         model_cache_dir=args.model_cache_dir,
         outputs_dir=args.outputs_dir,
         seed=args.seed,

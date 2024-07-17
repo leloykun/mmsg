@@ -22,8 +22,8 @@ class _ParsePatternWithModalityMarkers(_ParsePattern):
             frozenset(
                 {
                     tokenizer.image_token,
-                    tokenizer.image_start_token,
-                    tokenizer.image_end_token,
+                    tokenizer.boi_token,
+                    tokenizer.eoi_token,
                 }
             ),
             negated=False,
@@ -54,9 +54,9 @@ class _ParsePatternWithModalityMarkers(_ParsePattern):
             return _Concatenation(
                 tuple(
                     [
-                        _CharGroup(frozenset({self.tokenizer.image_start_token}), False),
+                        _CharGroup(frozenset({self.tokenizer.boi_token}), False),
                         b,
-                        _CharGroup(frozenset({self.tokenizer.image_end_token}), False),
+                        _CharGroup(frozenset({self.tokenizer.eoi_token}), False),
                     ]
                 )
             )
