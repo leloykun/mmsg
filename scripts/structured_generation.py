@@ -123,7 +123,6 @@ def run_structured_generation(
     logger.info(f"Prompt: {prompt}")
 
     images = None
-    model.multimodal_generation_mode = "free"
 
     logger.info("Building regex guide...")
     regex_guide = RegexWithMultimodalMarkersGuide(
@@ -147,6 +146,7 @@ def run_structured_generation(
     with torch.inference_mode():
         generated_ids = model.generate(
             **inputs,
+            multimodal_generation_mode="free",
             logits_processor=logits_processor,
             max_new_tokens=max_new_tokens,
             do_sample=True,

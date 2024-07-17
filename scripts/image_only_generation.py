@@ -141,13 +141,13 @@ def run_image_only_generation(
     ])
 
     logger.info("Generating response...")
-    model.multimodal_generation_mode = "free"
     with torch.inference_mode():
         output_token_ids_batch = model.generate(
             **inputs,
+            multimodal_generation_mode="free",
             max_new_tokens=max_new_tokens,
             logits_processor=logits_processor,
-            do_sample=True
+            do_sample=True,
         )
     logger.info("Finished generation.")
 
