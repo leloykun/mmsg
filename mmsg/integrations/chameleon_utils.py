@@ -22,7 +22,7 @@ class ResponseDict(TypedDict):
 
 
 def split_tokens_into_segments_by_modality(
-    token_ids: np.ndarray,
+    token_ids: "np.ndarray",
     image_token_ids: List[int],
     boi_token_id: int,
     eoi_token_id: int,
@@ -113,7 +113,7 @@ def build_response_from_segments(
 
 
 def postprocess_token_sequence(
-    token_ids: np.ndarray,
+    token_ids: "np.ndarray",
     model: Union["ChameleonModel", "ChameleonForCausalLM"],
     processor: "ChameleonProcessor",
     outputs_dir: Optional[str] = None,

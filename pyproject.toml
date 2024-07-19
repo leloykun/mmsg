@@ -40,7 +40,7 @@ test = [
     "numpy",
     "term-image",
     "pre-commit",
-    "transformers @ file:///transformers",
+    "transformers @ git+https://github.com/leloykun/transformers@fc--anole",
     # "transformers",
 ]
 
