@@ -1,4 +1,5 @@
 import argparse
+import json
 import logging
 import os
 from typing import Literal, Optional
@@ -11,26 +12,29 @@ logging.basicConfig(
 logger = logging.getLogger()
 
 
-def run_text_only_generation(
+def run_interleaved_generation(
     model_id: str = "leloy/Anole-7b-v0.1-hf",
-    inference_mode: Literal[
-        "text-to-text", "text-image-to-text", "multi-image-to-text"
-    ] = "text-to-text",
+    inference_mode: Literal["text-to-interleaved-text-image"] = "text-to-interleaved-text-image",
     prompt: Optional[str] = None,
-    image_1_path: Optional[str] = None,
-    image_2_path: Optional[str] = None,
-    max_new_tokens: int = 40,
+    max_new_tokens: int = 2400,
     fast: bool = False,
-    model_cache_dir: str = "/pretrained",
+    model_cache_dir: Optional[str] = None,
+    outputs_dir: str = ".",
     seed: Optional[int] = None,
 ) -> str:
     import torch
+    from term_image.image import from_file
     from transformers import ChameleonForCausalLM, ChameleonProcessor, set_seed
+    from transformers.generation.logits_process import LogitsProcessorList
 
-    from mmsg.utils import load_image
+    from mmsg.integrations.chameleon_logits_processor import (
+        ChameleonFSMLogitsProcessor,
+        ChameleonModalityFSMGuide,
+    )
+    from mmsg.integrations.chameleon_utils import postprocess_token_sequence
 
     if seed:
-        set_seed(0)
+        set_seed(42)
     torch.set_printoptions(threshold=10_000)
 
     if fast:
@@ -56,76 +60,72 @@ def run_text_only_generation(
         cache_dir=model_cache_dir,
     )
 
-    if inference_mode == "text-to-text":
-        logger.info("TASK: Text to Text generation")
-
+    if inference_mode == "text-to-interleaved-text-image":
+        logger.info("TASK: Text to Interleaved Text-Image generation")
         if prompt is None:
-            prompt = "Is a banana a fruit or a vegetable? Please answer with yes or no."
+            prompt = "Please draw an apple!"
         logger.info(f"Prompt: {prompt}")
 
         inputs = processor(prompt, return_tensors="pt").to(
             model.device, dtype=model.dtype
         )
-    elif inference_mode == "text-image-to-text":
-        logger.info("TASK: Text-Image to Text generation")
-
-        if prompt is None:
-            prompt = "What is in this image?"
-        prompt = f"{prompt}<image>"
-        logger.info(f"Prompt: {prompt}")
-
-        if image_1_path is None:
-            image_1_path = "https://nineplanets.org/wp-content/uploads/2020/12/the-big-dipper-1.jpg"
-        image = load_image(image_1_path)
-        logger.info("Image 1 loaded.", image_1_path)
-
-        inputs = processor(prompt, image, return_tensors="pt").to(
-            model.device, dtype=model.dtype
-        )
-    elif inference_mode == "multi-image-to-text":
-        logger.info("TASK: Multi-Image generation")
-
-        if prompt is None:
-            prompt = "What do these two images have in common?"
-        prompt = f"{prompt}<image><image>"
-        logger.info(f"Prompt: {prompt}")
-
-        if image_1_path is None:
-            image_1_path = "https://nineplanets.org/wp-content/uploads/2020/12/the-big-dipper-1.jpg"
-        if image_2_path is None:
-            image_2_path = (
-                "https://www.kxan.com/wp-content/uploads/sites/40/2020/10/ORION.jpg"
-            )
-        images = [load_image(image_1_path), load_image(image_2_path)]
-        logger.info("Images loaded.", image_1_path, image_2_path)
-
-        inputs = processor(
-            text=prompt,
-            images=images,
-            padding=True,
-            return_tensors="pt",
-        ).to(model.device, dtype=model.dtype)
     else:
-        raise ValueError(f"Invalid inference_mode: {inference_mode}")
+        raise ValueError(f"Invalid inference_id: {inference_mode}")
+
+    max_length = max_new_tokens + inputs["input_ids"].shape[-1]
+
+    logits_processor = LogitsProcessorList([
+        ChameleonFSMLogitsProcessor(
+            fsm=ChameleonModalityFSMGuide(
+                all_token_ids=model.vocabulary_mapping.vocab_map.values(),
+                image_token_ids=model.vocabulary_mapping.image_token_ids,
+                eos_token_id=model.config.eos_token_id,
+                boi_token_id=model.vocabulary_mapping.boi_token_id,
+                eoi_token_id=model.vocabulary_mapping.eoi_token_id,
+                device=model.device,
+                multimodal_generation_mode="interleaved-text-image",
+            ),
+            max_length=max_length,
+        )
+    ])
 
     logger.info("Generating response...")
     with torch.inference_mode():
         output_token_ids_batch = model.generate(
             **inputs,
+            multimodal_generation_mode="free",
             max_new_tokens=max_new_tokens,
+            logits_processor=logits_processor,
             do_sample=True,
         )
-    logger.info(f"Finished generation.")
+    logger.info("Finished generation.")
 
-    response_token_ids = [
-        output_token_ids[len(input_token_ids) :]
-        for input_token_ids, output_token_ids in zip(
-            inputs["input_ids"], output_token_ids_batch
-        )
-    ]
-    response = processor.decode(response_token_ids[0], skip_special_tokens=True)
-    logger.info(f"Response: {response}")
-    return response
+    output_token_ids_batch = output_token_ids_batch.to(dtype=inputs["input_ids"].dtype).detach().cpu().numpy()
+
+    response_token_ids = output_token_ids_batch[0][len(inputs["input_ids"][0]) :]
+
+    full_outputs_dir = os.path.abspath(outputs_dir)
+    if not os.path.exists(full_outputs_dir):
+        logging.info(f"Creating directory: {full_outputs_dir}")
+        os.mkdir(full_outputs_dir)
+
+    response = postprocess_token_sequence(
+        response_token_ids, model, processor, full_outputs_dir, validate=True
+    )
+
+    logger.info(f"Response: {response['text']}")
+    for image in response["images"]:
+        if "save_path" not in image:
+            continue
+        logger.info(f"{image['save_path'] = }")
+        terminal_image = from_file(image["save_path"])
+        terminal_image.draw()
+
+    with open(f"{full_outputs_dir}/response.json", "w") as f:
+        json.dump(response, f)
+    logger.info(f"Response saved to {full_outputs_dir}/response.json")
+
+    return json.dumps(response)
 
 
 def parse_arguments() -> argparse.Namespace:
@@ -144,9 +144,9 @@ def parse_arguments() -> argparse.Namespace:
     parser.add_argument(
         "-i",
         "--inference_mode",
-        choices=["text-to-text", "text-image-to-text", "multi-image-to-text"],
+        choices=["text-to-image", "text-image-to-image", "multi-image-to-image"],
         required=False,
-        default="text-to-text",
+        default="text-to-image",
         help="",
     )
     parser.add_argument(
@@ -157,22 +157,22 @@ def parse_arguments() -> argparse.Namespace:
         default=None,
         help="The prompt for generation. Will be appended by <image> or <image><image> if images are provided.",
     )
-    parser.add_argument(
-        "-i1",
-        "--image_1_path",
-        type=str,
-        required=False,
-        default=None,
-        help="The path to the first image to be used for generation.",
-    )
-    parser.add_argument(
-        "-i2",
-        "--image_2_path",
-        type=str,
-        required=False,
-        default=None,
-        help="The path to the second image to be used for generation.",
-    )
+    # parser.add_argument(
+    #     "-i1",
+    #     "--image_1_path",
+    #     type=str,
+    #     required=False,
+    #     default=None,
+    #     help="The path to the first image to be used for generation.",
+    # )
+    # parser.add_argument(
+    #     "-i2",
+    #     "--image_2_path",
+    #     type=str,
+    #     required=False,
+    #     default=None,
+    #     help="The path to the second image to be used for generation.",
+    # )
     parser.add_argument(
         "-n",
         "--max_new_tokens",
@@ -194,8 +194,16 @@ def parse_arguments() -> argparse.Namespace:
         "--model_cache_dir",
         type=str,
         required=False,
-        default="/pretrained",
+        default=None,
         help="The directory to cache the model in.",
+    )
+    parser.add_argument(
+        "-o",
+        "--outputs_dir",
+        type=str,
+        required=False,
+        default=".",
+        help="The directory to save the generated images in.",
     )
     parser.add_argument(
         "-s",
@@ -211,15 +219,14 @@ def parse_arguments() -> argparse.Namespace:
 
 if __name__ == "__main__":
     args = parse_arguments()
-    logger.info(f"Running image only generation... {args = }")
-    run_text_only_generation(
+    logger.info(f"Running interleaved generation... {args = }")
+    run_interleaved_generation(
         model_id=args.model_id,
         inference_mode=args.inference_mode,
         prompt=args.prompt,
-        image_1_path=args.image_1_path,
-        image_2_path=args.image_2_path,
         max_new_tokens=args.max_new_tokens,
         fast=args.fast,
         model_cache_dir=args.model_cache_dir,
+        outputs_dir=args.outputs_dir,
         seed=args.seed,
     )

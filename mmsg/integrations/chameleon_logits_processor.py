@@ -261,7 +261,7 @@ class ChameleonFSMLogitsProcessor:
         elif state == self.fsm.IMAGE_STATE:
             last_block = input_ids[-self.image_seq_length :]
             if len(last_block) < self.image_seq_length:
-                return allowed_tokens
+                return allowed_tokens[allowed_tokens != self.fsm.eoi_token_id]
             # If there are already `image_seq_length` image tokens, don't generate more
             if torch.all(
                 torch.isin(last_block, self.image_token_ids_tensor.to(last_block.device))
@@ -415,7 +415,7 @@ class ChameleonPrefixAllowedTokensFunc:
         elif state == self.fsm.IMAGE_STATE:
             last_block = torch.tensor(input_ids[-self.image_seq_length :])
             if len(last_block) < self.image_seq_length:
-                return allowed_tokens
+                return allowed_tokens[allowed_tokens != self.fsm.eoi_token_id]
             # If there are already `image_seq_length` image tokens, don't generate more
             if torch.all(torch.isin(last_block, torch.tensor(self.fsm.image_token_ids))):
                 return torch.tensor([self.fsm.eoi_token_id])

@@ -2,9 +2,13 @@ import argparse
 import json
 import logging
 import os
-import uuid
 from typing import Optional
 
+logging.basicConfig(
+    format="%(asctime)s %(levelname)-8s %(message)s",
+    level=logging.INFO,
+    datefmt="%Y-%m-%d %H:%M:%S",
+)
 logger = logging.getLogger()
 
 
@@ -18,7 +22,7 @@ def run_structured_generation(
     model_cache_dir: str = "/pretrained",
     outputs_dir: str = ".",
     seed: Optional[int] = None,
-):
+) -> str:
     import torch
     from outlines.processors import FSMLogitsProcessor
     from term_image.image import from_file
@@ -27,6 +31,7 @@ def run_structured_generation(
 
     from mmsg.fsm.guide import RegexWithMultimodalMarkersGuide
     from mmsg.fsm.json_schema import build_regex_from_schema
+    from mmsg.integrations.chameleon_utils import postprocess_token_sequence
     from mmsg.integrations.multimodal_tokenizer import MultimodalTokenizer
 
     if seed:
@@ -40,19 +45,19 @@ def run_structured_generation(
             low_cpu_mem_usage=True,
             attn_implementation="flash_attention_2",
             device_map="auto",
-            token=os.environ["HF_TOKEN"],
+            token=os.environ.get("HF_TOKEN"),
             cache_dir=model_cache_dir,
         )
     else:
         model = ChameleonForCausalLM.from_pretrained(
             model_id,
             device_map="auto",
-            token=os.environ["HF_TOKEN"],
+            token=os.environ.get("HF_TOKEN"),
             cache_dir=model_cache_dir,
         )
     processor = ChameleonProcessor.from_pretrained(
         model_id,
-        token=os.environ["HF_TOKEN"],
+        token=os.environ.get("HF_TOKEN"),
         cache_dir=model_cache_dir,
     )
 
@@ -144,7 +149,7 @@ def run_structured_generation(
 
     logger.info("Starting generation...")
     with torch.inference_mode():
-        generated_ids = model.generate(
+        output_token_ids_batch = model.generate(
             **inputs,
             multimodal_generation_mode="free",
             logits_processor=logits_processor,
@@ -153,57 +158,32 @@ def run_structured_generation(
         )
     logger.info("Finished generation.")
 
-    response_token_ids = [
-        output_token_ids[len(input_token_ids) :]
-        for input_token_ids, output_token_ids in zip(inputs["input_ids"], generated_ids)
-    ]
+    output_token_ids_batch = output_token_ids_batch.to(dtype=inputs["input_ids"].dtype).detach().cpu().numpy()
 
-    image_tokens_list = []
-    in_image_gen_mode = False
-    curr_image_tokens = []
-    text_token_ids = []
-    for token_id in response_token_ids[0]:
-        if token_id == mmsg_tokenizer.boi_token_id:
-            in_image_gen_mode = True
-            text_token_ids.append(mmsg_tokenizer.image_token_id)
-            continue
-        if token_id == mmsg_tokenizer.eoi_token_id:
-            if in_image_gen_mode:
-                in_image_gen_mode = False
-                image_tokens_list.append(curr_image_tokens)
-                curr_image_tokens = []
-            continue
+    response_token_ids = output_token_ids_batch[0][len(inputs["input_ids"][0]) :]
 
-        if in_image_gen_mode:
-            curr_image_tokens.append(token_id)
-        else:
-            text_token_ids.append(token_id)
+    full_outputs_dir = os.path.abspath(outputs_dir)
+    if not os.path.exists(full_outputs_dir):
+        logging.info(f"Creating directory: {full_outputs_dir}")
+        os.mkdir(full_outputs_dir)
 
-    response = processor.decode(text_token_ids, skip_special_tokens=True)
-
-    logger.info(f"Response: {response.replace(prompt, '')}")
-
-    # normalize to 1024 tokens per image
-    image_tokens_list = [
-        image_tokens + [1] * (1024 - len(image_tokens))
-        if len(image_tokens) <= 1024
-        else image_tokens[:1024]
-        for image_tokens in image_tokens_list
-    ]
-
-    image_tokens_tensor = torch.tensor(image_tokens_list).to("cuda")
-    with torch.inference_mode():
-        reconstructed_pixel_values = model.decode_image_tokens(image_tokens_tensor)
-    reconstructed_images = processor.postprocess_pixel_values(
-        reconstructed_pixel_values.float().detach().cpu().numpy()
+    response = postprocess_token_sequence(
+        response_token_ids, model, processor, full_outputs_dir, validate=True
     )
 
-    for reconstructed_image in reconstructed_images:
-        image_path = f"{outputs_dir}/test_image-{str(uuid.uuid4())}.png"
-        logger.info(f"{image_path = }")
-        reconstructed_image.save(image_path)
-        terminal_image = from_file(image_path)
+    logger.info(f"Response: {response['text']}")
+    for image in response["images"]:
+        if "save_path" not in image:
+            continue
+        logger.info(f"{image['save_path'] = }")
+        terminal_image = from_file(image["save_path"])
         terminal_image.draw()
+
+    with open(f"{full_outputs_dir}/response.json", "w") as f:
+        json.dump(response, f)
+    logger.info(f"Response saved to {full_outputs_dir}/response.json")
+
+    return json.dumps(response)
 
 
 def parse_arguments() -> argparse.Namespace:
@@ -289,7 +269,7 @@ def parse_arguments() -> argparse.Namespace:
 
 if __name__ == "__main__":
     args = parse_arguments()
-    print(args)
+    logger.info(f"Running image only generation... {args = }")
     run_structured_generation(
         model_id=args.model_id,
         # inference_mode=args.inference_mode,

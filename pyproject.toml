@@ -30,6 +30,7 @@ dependencies = [
     "Pillow",
     "referencing",
     "requests",
+    "torch",
 ]
 dynamic = ["version"]
 
@@ -39,7 +40,7 @@ test = [
     "numpy",
     "term-image",
     "pre-commit",
-    "transformers @ git+https://github.com/leloykun/transformers@fc--anole",
+    "transformers @ file:///transformers",
     # "transformers",
 ]
 
@@ -74,6 +75,7 @@ line-length = 89
 module = [
     "interegular.*",
     "jsonschema.*",
+    "numpy.*",
     "outlines.*",
     "PIL.*",
     "referencing.*",

@@ -99,7 +99,7 @@ def run_convert_chameleon_weights(
                 "huggingface-cli",
                 "upload",
                 "--token",
-                os.environ["HF_TOKEN"],
+                os.environ.get("HF_TOKEN"),
                 "--private",
                 f"leloy/{model_name}-hf",
                 local_output_model_path,
