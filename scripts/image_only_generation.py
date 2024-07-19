@@ -28,7 +28,11 @@ def run_image_only_generation(
 ) -> str:
     import torch
     from term_image.image import from_file
-    from transformers import ChameleonForCausalLM, ChameleonProcessor, set_seed
+    from transformers import (
+        ChameleonForConditionalGeneration,
+        ChameleonProcessor,
+        set_seed,
+    )
 
     from mmsg.integrations.chameleon_utils import postprocess_token_sequence
     from mmsg.utils import load_image
@@ -38,7 +42,7 @@ def run_image_only_generation(
     torch.set_printoptions(threshold=10_000)
 
     if fast:
-        model = ChameleonForCausalLM.from_pretrained(
+        model = ChameleonForConditionalGeneration.from_pretrained(
             model_id,
             torch_dtype=torch.bfloat16,
             low_cpu_mem_usage=True,
@@ -48,7 +52,7 @@ def run_image_only_generation(
             cache_dir=model_cache_dir,
         )
     else:
-        model = ChameleonForCausalLM.from_pretrained(
+        model = ChameleonForConditionalGeneration.from_pretrained(
             model_id,
             device_map="auto",
             token=os.environ.get("HF_TOKEN"),

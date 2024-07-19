@@ -26,7 +26,11 @@ def run_structured_generation(
     import torch
     from outlines.processors import FSMLogitsProcessor
     from term_image.image import from_file
-    from transformers import ChameleonForCausalLM, ChameleonProcessor, set_seed
+    from transformers import (
+        ChameleonForConditionalGeneration,
+        ChameleonProcessor,
+        set_seed,
+    )
     from transformers.generation.logits_process import LogitsProcessorList
 
     from mmsg.fsm.guide import RegexWithMultimodalMarkersGuide
@@ -39,7 +43,7 @@ def run_structured_generation(
     torch.set_printoptions(threshold=10_000)
 
     if fast:
-        model = ChameleonForCausalLM.from_pretrained(
+        model = ChameleonForConditionalGeneration.from_pretrained(
             model_id,
             torch_dtype=torch.bfloat16,
             low_cpu_mem_usage=True,
@@ -49,7 +53,7 @@ def run_structured_generation(
             cache_dir=model_cache_dir,
         )
     else:
-        model = ChameleonForCausalLM.from_pretrained(
+        model = ChameleonForConditionalGeneration.from_pretrained(
             model_id,
             device_map="auto",
             token=os.environ.get("HF_TOKEN"),

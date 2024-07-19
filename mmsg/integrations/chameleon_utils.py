@@ -8,7 +8,11 @@ from ..utils import pil_to_base64
 
 if TYPE_CHECKING:
     import numpy as np
-    from transformers import ChameleonForCausalLM, ChameleonModel, ChameleonProcessor
+    from transformers import (
+        ChameleonForConditionalGeneration,
+        ChameleonModel,
+        ChameleonProcessor,
+    )
 
 
 class ImageDataDict(TypedDict):
@@ -71,7 +75,7 @@ def split_tokens_into_segments_by_modality(
 
 
 def build_response_from_segments(
-    model: Union["ChameleonModel", "ChameleonForCausalLM"],
+    model: Union["ChameleonModel", "ChameleonForConditionalGeneration"],
     processor: "ChameleonProcessor",
     segments: List[Tuple[Literal["text", "image"], List[int]]],
     outputs_dir: Optional[str] = None,
@@ -114,7 +118,7 @@ def build_response_from_segments(
 
 def postprocess_token_sequence(
     token_ids: "np.ndarray",
-    model: Union["ChameleonModel", "ChameleonForCausalLM"],
+    model: Union["ChameleonModel", "ChameleonForConditionalGeneration"],
     processor: "ChameleonProcessor",
     outputs_dir: Optional[str] = None,
     validate: bool = True,

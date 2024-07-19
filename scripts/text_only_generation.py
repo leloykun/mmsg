@@ -25,7 +25,11 @@ def run_text_only_generation(
     seed: Optional[int] = None,
 ) -> str:
     import torch
-    from transformers import ChameleonForCausalLM, ChameleonProcessor, set_seed
+    from transformers import (
+        ChameleonForConditionalGeneration,
+        ChameleonProcessor,
+        set_seed,
+    )
 
     from mmsg.utils import load_image
 
@@ -34,7 +38,7 @@ def run_text_only_generation(
     torch.set_printoptions(threshold=10_000)
 
     if fast:
-        model = ChameleonForCausalLM.from_pretrained(
+        model = ChameleonForConditionalGeneration.from_pretrained(
             model_id,
             torch_dtype=torch.bfloat16,
             low_cpu_mem_usage=True,
@@ -44,7 +48,7 @@ def run_text_only_generation(
             cache_dir=model_cache_dir,
         )
     else:
-        model = ChameleonForCausalLM.from_pretrained(
+        model = ChameleonForConditionalGeneration.from_pretrained(
             model_id,
             device_map="auto",
             token=os.environ.get("HF_TOKEN"),
