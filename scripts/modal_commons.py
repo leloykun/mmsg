@@ -72,12 +72,8 @@ image = (
     )
     # `flash-attn` requires `torch` to be installed first. Hence the order.
     .pip_install("flash-attn", extra_options="--no-cache-dir --no-build-isolation")
-    .copy_local_dir("/home/leloykun/transformers", "/transformers")
-    .copy_local_dir("/home/leloykun/mmsg", "/mmsg")
-    .copy_local_dir("/home/leloykun/outlines", "/outlines")
-    .run_commands(
-        "pip install --no-cache-dir --no-build-isolation -e /mmsg -e /transformers -e /outlines"
-    )
+    .copy_local_dir(os.path.dirname(CURR_DIR), "/mmsg")
+    .run_commands("pip install /mmsg[test]")
 )
 
 app = modal.App(image=image, volumes=VOLUME_CONFIG)
