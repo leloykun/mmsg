@@ -29,16 +29,11 @@ def run_interleaved_generation(
         ChameleonProcessor,
         set_seed,
     )
-    from transformers.generation.logits_process import LogitsProcessorList
 
-    from mmsg.integrations.chameleon_logits_processor import (
-        ChameleonFSMLogitsProcessor,
-        ChameleonModalityFSMGuide,
-    )
     from mmsg.integrations.chameleon_utils import postprocess_token_sequence
 
-    if seed:
-        set_seed(42)
+    if seed is not None:
+        set_seed(seed)
     torch.set_printoptions(threshold=10_000)
 
     if fast:
@@ -76,30 +71,12 @@ def run_interleaved_generation(
     else:
         raise ValueError(f"Invalid inference_id: {inference_mode}")
 
-    max_length = max_new_tokens + inputs["input_ids"].shape[-1]
-
-    logits_processor = LogitsProcessorList([
-        ChameleonFSMLogitsProcessor(
-            fsm=ChameleonModalityFSMGuide(
-                all_token_ids=model.vocabulary_mapping.vocab_map.values(),
-                image_token_ids=model.vocabulary_mapping.image_token_ids,
-                eos_token_id=model.config.eos_token_id,
-                boi_token_id=model.vocabulary_mapping.boi_token_id,
-                eoi_token_id=model.vocabulary_mapping.eoi_token_id,
-                device=model.device,
-                multimodal_generation_mode="interleaved-text-image",
-            ),
-            max_length=max_length,
-        )
-    ])
-
     logger.info("Generating response...")
     with torch.inference_mode():
         output_token_ids_batch = model.generate(
             **inputs,
-            multimodal_generation_mode="free",
+            multimodal_generation_mode="interleaved-text-image",
             max_new_tokens=max_new_tokens,
-            logits_processor=logits_processor,
             do_sample=True,
         )
     logger.info("Finished generation.")

@@ -1,8 +1,16 @@
+import logging
 import os
 from typing import Optional
 
 import modal
 from modal_commons import GPU_CONFIG, MODEL_DIR, VOLUME_CONFIG, app
+
+logging.basicConfig(
+    format="%(asctime)s %(levelname)-8s %(message)s",
+    level=logging.INFO,
+    datefmt="%Y-%m-%d %H:%M:%S",
+)
+logger = logging.getLogger()
 
 
 @app.function(
@@ -38,7 +46,7 @@ def run_convert_chameleon_weights(
     continue_download = True
     if os.path.exists(local_input_model_path):
         if force_download:
-            print("Removing original model...")
+            logger.info("Removing original model...")
             subprocess.run(
                 [
                     "rm",
@@ -49,10 +57,11 @@ def run_convert_chameleon_weights(
             )
         else:
             continue_download = False
-            print(
+            logger.info(
                 f"Original model already downloaded at {local_input_model_path}. Skipping redownload."
             )
     if continue_download:
+        logger.info("Downloading original model...")
         subprocess.run(
             [
                 "huggingface-cli",
@@ -66,11 +75,12 @@ def run_convert_chameleon_weights(
             ],
             check=True,
         )
+        logger.info("Downloaded original model.")
 
     continue_conversion = True
     if os.path.exists(local_output_model_path):
         if force_conversion:
-            print("Removing converted model...")
+            logger.info("Removing converted model...")
             subprocess.run(
                 [
                     "rm",
@@ -81,19 +91,22 @@ def run_convert_chameleon_weights(
             )
         else:
             continue_conversion = False
-            print(f"Converted model already exists at {local_output_model_path}. Skipping.")
+            logger.info(f"Converted model already exists at {local_output_model_path}. Skipping.")
     if continue_conversion:
         if model_size not in NUM_SHARDS:
             raise ValueError(
                 f"Model size {model_size} not supported. Choose from {NUM_SHARDS.keys()}"
             )
+        logger.info("Converting model to Transformers-compatible version...")
         write_model(
             model_path=local_output_model_path,
             input_base_path=local_input_model_path,
             model_size=model_size,
         )
+        logger.info("Finished converting model.")
 
     if upload_to_hf:
+        logger.info("Uploading converted model to HF...")
         subprocess.run(
             [
                 "huggingface-cli",
@@ -106,6 +119,7 @@ def run_convert_chameleon_weights(
             ],
             check=True,
         )
+        logger.info("Finished uploading converted model to HF.")
 
 
 @app.local_entrypoint()

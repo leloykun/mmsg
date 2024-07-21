@@ -33,8 +33,8 @@ def run_text_only_generation(
 
     from mmsg.utils import load_image
 
-    if seed:
-        set_seed(0)
+    if seed is not None:
+        set_seed(seed)
     torch.set_printoptions(threshold=10_000)
 
     if fast:

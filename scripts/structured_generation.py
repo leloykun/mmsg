@@ -38,8 +38,8 @@ def run_structured_generation(
     from mmsg.integrations.chameleon_utils import postprocess_token_sequence
     from mmsg.integrations.multimodal_tokenizer import MultimodalTokenizer
 
-    if seed:
-        set_seed(42)
+    if seed is not None:
+        set_seed(seed)
     torch.set_printoptions(threshold=10_000)
 
     if fast:
@@ -155,7 +155,7 @@ def run_structured_generation(
     with torch.inference_mode():
         output_token_ids_batch = model.generate(
             **inputs,
-            multimodal_generation_mode="free",
+            multimodal_generation_mode="unrestricted",
             logits_processor=logits_processor,
             max_new_tokens=max_new_tokens,
             do_sample=True,

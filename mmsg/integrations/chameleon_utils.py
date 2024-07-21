@@ -2,6 +2,7 @@ import os
 import uuid
 from typing import TYPE_CHECKING, List, Literal, Optional, Tuple, TypedDict, Union
 
+import torch
 from typing_extensions import NotRequired
 
 from ..utils import pil_to_base64
@@ -84,12 +85,17 @@ def build_response_from_segments(
         token_ids for modality, token_ids in segments if modality == "text"
     ]
     image_tokens_list = [
-        token_ids for modality, token_ids in segments if modality == "image"
+        token_ids[:1024]
+        if len(token_ids) > 1024
+        else [1] * (1024 - len(token_ids)) + token_ids
+        for modality, token_ids in segments
+        if modality == "image"
     ]
 
     text_str_list = processor.batch_decode(text_tokens_list, skip_special_tokens=True)
 
-    pixel_values = model.decode_image_tokens(image_tokens_list)
+    image_tokens_tensor = torch.tensor(image_tokens_list, device=model.device)
+    pixel_values = model.decode_image_tokens(image_tokens_tensor)
     images = processor.postprocess_pixel_values(
         pixel_values.float().detach().cpu().numpy()
     )

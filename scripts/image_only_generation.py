@@ -37,8 +37,8 @@ def run_image_only_generation(
     from mmsg.integrations.chameleon_utils import postprocess_token_sequence
     from mmsg.utils import load_image
 
-    if seed:
-        set_seed(42)
+    if seed is not None:
+        set_seed(seed)
     torch.set_printoptions(threshold=10_000)
 
     if fast:
