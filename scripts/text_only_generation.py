@@ -20,7 +20,7 @@ def run_text_only_generation(
     image_1_path: Optional[str] = None,
     image_2_path: Optional[str] = None,
     max_new_tokens: int = 40,
-    fast: bool = False,
+    fast: bool = True,
     model_cache_dir: str = "/pretrained",
     seed: Optional[int] = None,
 ) -> str:
@@ -67,9 +67,12 @@ def run_text_only_generation(
             prompt = "Is a banana a fruit or a vegetable? Please answer with yes or no."
         logger.info(f"Prompt: {prompt}")
 
-        inputs = processor(prompt, return_tensors="pt").to(
-            model.device, dtype=model.dtype
-        )
+        inputs = processor(
+            prompt,
+            padding=True,
+            return_tensors="pt",
+            return_for_text_completion=True,
+        ).to(model.device, dtype=model.dtype)
     elif inference_mode == "text-image-to-text":
         logger.info("TASK: Text-Image to Text generation")
 
@@ -83,9 +86,13 @@ def run_text_only_generation(
         image = load_image(image_1_path)
         logger.info("Image 1 loaded.", image_1_path)
 
-        inputs = processor(prompt, image, return_tensors="pt").to(
-            model.device, dtype=model.dtype
-        )
+        inputs = processor(
+            prompt,
+            image,
+            padding=True,
+            return_tensors="pt",
+            return_for_text_completion=True,
+        ).to(model.device, dtype=model.dtype)
     elif inference_mode == "multi-image-to-text":
         logger.info("TASK: Multi-Image generation")
 
@@ -108,6 +115,7 @@ def run_text_only_generation(
             images=images,
             padding=True,
             return_tensors="pt",
+            return_for_text_completion=True,
         ).to(model.device, dtype=model.dtype)
     else:
         raise ValueError(f"Invalid inference_mode: {inference_mode}")

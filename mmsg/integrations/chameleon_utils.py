@@ -85,9 +85,9 @@ def build_response_from_segments(
         token_ids for modality, token_ids in segments if modality == "text"
     ]
     image_tokens_list = [
-        token_ids[:1024]
-        if len(token_ids) > 1024
-        else [1] * (1024 - len(token_ids)) + token_ids
+        token_ids[: processor.image_seq_length]
+        if len(token_ids) > processor.image_seq_length
+        else [1] * (processor.image_seq_length - len(token_ids)) + token_ids
         for modality, token_ids in segments
         if modality == "image"
     ]

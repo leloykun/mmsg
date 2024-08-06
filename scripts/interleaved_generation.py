@@ -17,7 +17,7 @@ def run_interleaved_generation(
     inference_mode: Literal["text-to-interleaved-text-image"] = "text-to-interleaved-text-image",
     prompt: Optional[str] = None,
     max_new_tokens: int = 2400,
-    fast: bool = False,
+    fast: bool = True,
     model_cache_dir: Optional[str] = None,
     outputs_dir: str = ".",
     seed: Optional[int] = None,
@@ -65,9 +65,12 @@ def run_interleaved_generation(
             prompt = "Please draw an apple!"
         logger.info(f"Prompt: {prompt}")
 
-        inputs = processor(prompt, return_tensors="pt").to(
-            model.device, dtype=model.dtype
-        )
+        inputs = processor(
+            prompt,
+            padding=True,
+            return_tensors="pt",
+            return_for_text_completion=True,
+        ).to(model.device, dtype=model.dtype)
     else:
         raise ValueError(f"Invalid inference_id: {inference_mode}")
 

@@ -21,7 +21,7 @@ def run_image_only_generation(
     image_1_path: Optional[str] = None,
     image_2_path: Optional[str] = None,
     max_new_tokens: int = 2400,
-    fast: bool = False,
+    fast: bool = True,
     model_cache_dir: Optional[str] = None,
     outputs_dir: str = ".",
     seed: Optional[int] = None,
@@ -70,9 +70,11 @@ def run_image_only_generation(
             prompt = "Please draw an apple!"
         logger.info(f"Prompt: {prompt}")
 
-        inputs = processor(prompt, return_tensors="pt").to(
-            model.device, dtype=model.dtype
-        )
+        inputs = processor(
+            prompt,
+            padding=True,
+            return_tensors="pt",
+        ).to(model.device, dtype=model.dtype)
     elif inference_mode == "text-image-to-image":
         logger.info("TASK: Text-Image to Image generation")
 

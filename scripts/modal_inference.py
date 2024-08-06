@@ -31,7 +31,7 @@ def run_inference(
     regex_pattern: Optional[str] = None,
     model_cache_dir: str = MODEL_DIR,
     outputs_dir: str = GENERATED_IMAGES_DIR,
-    fast: bool = False,
+    fast: bool = True,
     seed: Optional[int] = None,
 ) -> Optional[str]:
     if inference_mode in ["text-to-text", "text-image-to-text", "multi-image-to-text"]:
@@ -130,7 +130,7 @@ def main(
     regex_pattern: Optional[str] = None,
     model_cache_dir: str = MODEL_DIR,
     outputs_dir: str = GENERATED_IMAGES_DIR,
-    fast: bool = False,
+    fast: bool = True,
     seed: Optional[int] = None,
     local: bool = False,
 ):

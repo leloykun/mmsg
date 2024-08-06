@@ -18,7 +18,7 @@ def run_structured_generation(
     json_schema_path: Optional[str] = None,
     regex_pattern: Optional[str] = None,
     max_new_tokens: int = 2400,
-    fast: bool = False,
+    fast: bool = True,
     model_cache_dir: str = "/pretrained",
     outputs_dir: str = ".",
     seed: Optional[int] = None,
@@ -123,15 +123,12 @@ def run_structured_generation(
 
     if json_schema is not None:
         json_schema_str = json.dumps(json_schema)
+        logger.info(f"JSON schema: {json_schema_str}")
         regex_pattern = build_regex_from_schema(json_schema_str)
         logger.info(f"Built regex pattern from json schema: {regex_pattern}")
 
         prompt = f"{prompt} Please follow this schema: {json.dumps(json_schema)}"
-    else:
-        prompt = f"{prompt} Please follow this regex pattern: {regex_pattern}"
     logger.info(f"Prompt: {prompt}")
-
-    images = None
 
     logger.info("Building regex guide...")
     regex_guide = RegexWithMultimodalMarkersGuide(
@@ -149,7 +146,7 @@ def run_structured_generation(
         [FSMLogitsProcessor(mmsg_tokenizer, regex_guide)]
     )
 
-    inputs = processor(prompt, images=images, return_tensors="pt").to(model.device)
+    inputs = processor(prompt, padding=True, return_tensors="pt").to(model.device)
 
     logger.info("Starting generation...")
     with torch.inference_mode():
